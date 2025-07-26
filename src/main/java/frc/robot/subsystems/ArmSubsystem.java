@@ -2,6 +2,7 @@ package frc.robot.subsystems;
 
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import edu.wpi.first.wpilibj.RobotController;
 import edu.wpi.first.wpilibj.simulation.SingleJointedArmSim;
 import edu.wpi.first.wpilibj.smartdashboard.Mechanism2d;
 import edu.wpi.first.wpilibj.smartdashboard.MechanismRoot2d;
@@ -14,6 +15,7 @@ import edu.wpi.first.wpilibj2.command.Command;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.BaseStatusSignal;
 import com.ctre.phoenix6.StatusSignal;
+import com.ctre.phoenix6.controls.MotionMagicVoltage;
 import com.ctre.phoenix6.controls.PositionVoltage;
 import com.ctre.phoenix6.controls.VelocityVoltage;
 import com.ctre.phoenix6.signals.NeutralModeValue;
@@ -26,7 +28,7 @@ public class ArmSubsystem extends SubsystemBase {
   // Constants
   private final int canID = 1;
   private final double gearRatio = 100; //100:1 gear ratio
-  private final double kP = 1;
+  private final double kP = 10;
   private final double kI = 0;
   private final double kD = 0;
   private final double maxVelocity = 1; // rad/s
@@ -59,7 +61,8 @@ public class ArmSubsystem extends SubsystemBase {
   private final Mechanism2d mech2d = new Mechanism2d(1.0, 1.0);
   private final MechanismRoot2d root = mech2d.getRoot("ArmRoot", 0.5, 0.1);
   private final MechanismLigament2d armLigament = root.append(new MechanismLigament2d("Arm", armLength, 90));
-  
+  private final MotionMagicVoltage armMotionMagicControl;
+
   // Constructor to initialize everything
   public ArmSubsystem() {
     motor = new TalonFX(canID);
@@ -71,6 +74,8 @@ public class ArmSubsystem extends SubsystemBase {
     voltageSignal = motor.getMotorVoltage();
     statorCurrentSignal = motor.getStatorCurrent();
     temperatureSignal = motor.getDeviceTemp();
+
+    armMotionMagicControl = new MotionMagicVoltage(0);
 
     // Configure motor parameters (PID, current limits, etc.)
     TalonFXConfiguration config = new TalonFXConfiguration();
@@ -85,8 +90,12 @@ public class ArmSubsystem extends SubsystemBase {
     currentLimits.SupplyCurrentLimit = supplyCurrentLimit;
     currentLimits.SupplyCurrentLimitEnable = enableSupplyLimit;
 
+    config.Feedback.SensorToMechanismRatio = gearRatio;
+    config.MotionMagic.MotionMagicCruiseVelocity = 10.0;
+    config.MotionMagic.MotionMagicAcceleration = 20.0;
+
     config.MotorOutput.NeutralMode = brakeMode ? NeutralModeValue.Brake : NeutralModeValue.Coast; // Set brake mode
-    config.Feedback.SensorToMechanismRatio = gearRatio; // Set gear ratio for the motor encoder
+    // config.Feedback.SensorToMechanismRatio = gearRatio; // Set gear ratio for the motor encoder
 
     motor.getConfigurator().apply(config);
     // Initialize motor position to 0
@@ -123,16 +132,23 @@ public class ArmSubsystem extends SubsystemBase {
   @Override
   public void simulationPeriodic() {
 
-    System.out.println(motorSim.getMotorVoltage());
+    SmartDashboard.putNumber("Sim/TargetRotations", armMotionMagicControl.Position);
+    SmartDashboard.putNumber("Sim/SimAngleDeg", Units.radiansToDegrees(armSim.getAngleRads()));
+    SmartDashboard.putNumber("Sim/MotorVoltage", motorSim.getMotorVoltage());
+
+    motorSim.setSupplyVoltage(12);
+
     armSim.setInput(motorSim.getMotorVoltage());
     armSim.update(0.02);
-    // System.out.println(Units.radiansToDegrees((armSim.getAngleRads())));
 
     motorSim.setRawRotorPosition(
-      (armSim.getAngleRads() - Math.toRadians(minAngleDeg)) * gearRatio * 2.0 * Math.PI);
+        (armSim.getAngleRads() - Math.toRadians(minAngleDeg))
+            * gearRatio
+            * 2.0
+            * Math.PI);
 
     motorSim.setRotorVelocity(
-      (armSim.getVelocityRadPerSec() * gearRatio) / (2.0 * Math.PI));
+      armSim.getVelocityRadPerSec() * gearRatio / (2.0 * Math.PI));
 
     armLigament.setAngle(Units.radiansToDegrees(armSim.getAngleRads()));
   }
@@ -168,23 +184,16 @@ public class ArmSubsystem extends SubsystemBase {
     return getPosition() * 2.0 * Math.PI;
   }
 
-  // Method to set the arm angle to a specific value (in degrees)
-  public void setAngle(double angleDegrees) {
-    setAngle(angleDegrees, 0);
-  }
 
-  // Method to set the arm angle with specified acceleration (in degrees)
-  public void setAngle(double angleDegrees, double acceleration) {
-    angleDegrees = Math.max(minAngleDeg, Math.min(maxAngleDeg, angleDegrees));
-    double angleRadians = Units.degreesToRadians(angleDegrees);
-    double positionRotations = angleRadians / (2.0 * Math.PI);
-    double ffVolts = feedforward.calculate(getVelocity(), acceleration);
-    motor.setControl(positionRequest.withPosition(positionRotations).withFeedForward(ffVolts));
+  public void setPosition(double position) {
+    double rotations = Math.toRadians(position) / (2.0 * Math.PI);
+    armMotionMagicControl.Slot = 0;
+    armMotionMagicControl.Position = rotations;
+    motor.setControl(armMotionMagicControl);
   }
 
   // Method to set the arm velocity (in degrees per second)
   public void setVelocity(double velocityDegPerSec) {
-    System.out.println("AAAAAAAAAAAAAAAAAAAAAAAAAAA");
     setVelocity(velocityDegPerSec, 0);
   }
 
@@ -209,7 +218,7 @@ public class ArmSubsystem extends SubsystemBase {
 
   // Command to set the arm angle to a specific value
   public Command setAngleCommand(double angleDegrees) {
-    return runOnce(() -> setAngle(angleDegrees, 1));
+    return runOnce(() -> setPosition(angleDegrees));
   }
 
   // Command to stop the arm by setting velocity to 0

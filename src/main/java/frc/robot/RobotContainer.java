@@ -44,7 +44,7 @@ public class RobotContainer {
     
     // Configure the trigger bindings
     configureBindings();
-    m_armSubsystem.setDefaultCommand(m_armSubsystem.setAngleCommand(0)); // hold at 0° by default
+    // m_armSubsystem.setDefaultCommand(m_armSubsystem.setAngleCommand(0)); // hold at 0° by default
 
     // Add dashboard buttons
     SmartDashboard.putData("Move Arm to 45°", m_armSubsystem.setAngleCommand(45));
