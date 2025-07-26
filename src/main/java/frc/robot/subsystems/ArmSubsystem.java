@@ -2,7 +2,6 @@ package frc.robot.subsystems;
 
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
-import edu.wpi.first.wpilibj.RobotController;
 import edu.wpi.first.wpilibj.simulation.SingleJointedArmSim;
 import edu.wpi.first.wpilibj.smartdashboard.Mechanism2d;
 import edu.wpi.first.wpilibj.smartdashboard.MechanismRoot2d;
@@ -21,29 +20,15 @@ import com.ctre.phoenix6.controls.VelocityVoltage;
 import com.ctre.phoenix6.signals.NeutralModeValue;
 import com.ctre.phoenix6.sim.TalonFXSimState;
 import com.ctre.phoenix6.configs.*;
+import frc.robot.Constants.ArmConstants;
 
 import edu.wpi.first.units.measure.*;
 
 public class ArmSubsystem extends SubsystemBase {
-  // Constants
-  private final int canID = 1;
-  private final double gearRatio = 100; //100:1 gear ratio
-  private final double kP = 10;
-  private final double kI = 0;
-  private final double kD = 0;
-  private final double maxVelocity = 1; // rad/s
-  private final double maxAcceleration = 1; // rad/s²
-  private final boolean brakeMode = true;
-  private final boolean enableStatorLimit = true;
-  private final double statorCurrentLimit = 40;
-  private final boolean enableSupplyLimit = false;
-  private final double supplyCurrentLimit = 40;
-  private final double armLength = 0.5; // meters
-  private final double minAngleDeg = 0;
-  private final double maxAngleDeg = 90;
+
 
   // Feedforward
-  private final ArmFeedforward feedforward = new ArmFeedforward(0, 0, 0, 0);
+  private final ArmFeedforward feedforward = new ArmFeedforward(ArmConstants.kS,ArmConstants.kG,ArmConstants.kV,ArmConstants.kA);
 
   // Motor control variables
   private final TalonFX motor;
@@ -60,12 +45,12 @@ public class ArmSubsystem extends SubsystemBase {
   private final SingleJointedArmSim armSim;
   private final Mechanism2d mech2d = new Mechanism2d(1.0, 1.0);
   private final MechanismRoot2d root = mech2d.getRoot("ArmRoot", 0.5, 0.1);
-  private final MechanismLigament2d armLigament = root.append(new MechanismLigament2d("Arm", armLength, 90));
+  private final MechanismLigament2d armLigament = root.append(new MechanismLigament2d("Arm", ArmConstants.armLength, 90));
   private final MotionMagicVoltage armMotionMagicControl;
 
   // Constructor to initialize everything
   public ArmSubsystem() {
-    motor = new TalonFX(canID);
+    motor = new TalonFX(ArmConstants.canID);
     motorSim = motor.getSimState(); //gets the simulation state of the motor
     positionRequest = new PositionVoltage(0).withSlot(0);
     velocityRequest = new VelocityVoltage(0).withSlot(0);
@@ -80,21 +65,21 @@ public class ArmSubsystem extends SubsystemBase {
     // Configure motor parameters (PID, current limits, etc.)
     TalonFXConfiguration config = new TalonFXConfiguration();
     Slot0Configs slot0 = config.Slot0;
-    slot0.kP = kP;
-    slot0.kI = kI;
-    slot0.kD = kD;
+    slot0.kP = ArmConstants.kP;
+    slot0.kI = ArmConstants.kI;
+    slot0.kD = ArmConstants.kD;
 
     CurrentLimitsConfigs currentLimits = config.CurrentLimits;
-    currentLimits.StatorCurrentLimit = statorCurrentLimit;
-    currentLimits.StatorCurrentLimitEnable = enableStatorLimit;
-    currentLimits.SupplyCurrentLimit = supplyCurrentLimit;
-    currentLimits.SupplyCurrentLimitEnable = enableSupplyLimit;
+    currentLimits.StatorCurrentLimit = ArmConstants.statorCurrentLimit;
+    currentLimits.StatorCurrentLimitEnable = ArmConstants.enableStatorLimit;
+    currentLimits.SupplyCurrentLimit = ArmConstants.supplyCurrentLimit;
+    currentLimits.SupplyCurrentLimitEnable = ArmConstants.enableSupplyLimit;
 
-    config.Feedback.SensorToMechanismRatio = gearRatio;
+    config.Feedback.SensorToMechanismRatio = ArmConstants.gearRatio;
     config.MotionMagic.MotionMagicCruiseVelocity = 10.0;
     config.MotionMagic.MotionMagicAcceleration = 20.0;
 
-    config.MotorOutput.NeutralMode = brakeMode ? NeutralModeValue.Brake : NeutralModeValue.Coast; // Set brake mode
+    config.MotorOutput.NeutralMode = ArmConstants.brakeMode ? NeutralModeValue.Brake : NeutralModeValue.Coast; // Set brake mode
     // config.Feedback.SensorToMechanismRatio = gearRatio; // Set gear ratio for the motor encoder
 
     motor.getConfigurator().apply(config);
@@ -104,16 +89,16 @@ public class ArmSubsystem extends SubsystemBase {
     // Initialize the arm simulation
     armSim = new SingleJointedArmSim(
       DCMotor.getKrakenX60(1),
-      gearRatio,
-      SingleJointedArmSim.estimateMOI(armLength, 5),
-      armLength,
-      Units.degreesToRadians(minAngleDeg),
-      Units.degreesToRadians(maxAngleDeg),
+      ArmConstants.gearRatio,
+      SingleJointedArmSim.estimateMOI(ArmConstants.armLength, 5),
+      ArmConstants.armLength,
+      Units.degreesToRadians(ArmConstants.minAngleDeg),
+      Units.degreesToRadians(ArmConstants.maxAngleDeg),
       true,
       Units.degreesToRadians(0)
     );
 
-    armLigament.setLength(armLength);
+    armLigament.setLength(ArmConstants.armLength);
 
     SmartDashboard.putData("Arm Visualization", mech2d);
   }
@@ -142,13 +127,13 @@ public class ArmSubsystem extends SubsystemBase {
     armSim.update(0.02);
 
     motorSim.setRawRotorPosition(
-        (armSim.getAngleRads() - Math.toRadians(minAngleDeg))
-            * gearRatio
+        (armSim.getAngleRads() - Math.toRadians(ArmConstants.minAngleDeg))
+            * ArmConstants.gearRatio
             / (2.0
             * Math.PI));
 
     motorSim.setRotorVelocity(
-      armSim.getVelocityRadPerSec() * gearRatio / (2.0 * Math.PI));
+      armSim.getVelocityRadPerSec() * ArmConstants.gearRatio / (2.0 * Math.PI));
 
     armLigament.setAngle(Units.radiansToDegrees(armSim.getAngleRads()));
   }
@@ -200,8 +185,8 @@ public class ArmSubsystem extends SubsystemBase {
    // Method to set the arm velocity with specified acceleration (in degrees per second)
   public void setVelocity(double velocityDegPerSec, double acceleration) {
     double currentDeg = Units.radiansToDegrees(getPositionRadians());
-    if ((currentDeg >= maxAngleDeg && velocityDegPerSec > 0) ||
-        (currentDeg <= minAngleDeg && velocityDegPerSec < 0)) {
+    if ((currentDeg >= ArmConstants.maxAngleDeg && velocityDegPerSec > 0) ||
+        (currentDeg <= ArmConstants.minAngleDeg && velocityDegPerSec < 0)) {
       velocityDegPerSec = 0;
     }
 
