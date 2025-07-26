@@ -17,6 +17,7 @@ import com.ctre.phoenix6.StatusSignal;
 import com.ctre.phoenix6.controls.PositionVoltage;
 import com.ctre.phoenix6.controls.VelocityVoltage;
 import com.ctre.phoenix6.signals.NeutralModeValue;
+import com.ctre.phoenix6.sim.TalonFXSimState;
 import com.ctre.phoenix6.configs.*;
 
 import edu.wpi.first.units.measure.*;
@@ -24,7 +25,7 @@ import edu.wpi.first.units.measure.*;
 public class ArmSubsystem extends SubsystemBase {
   // Constants
   private final int canID = 1;
-  private final double gearRatio = 15;
+  private final double gearRatio = 100; //100:1 gear ratio
   private final double kP = 1;
   private final double kI = 0;
   private final double kD = 0;
@@ -44,6 +45,7 @@ public class ArmSubsystem extends SubsystemBase {
 
   // Motor control variables
   private final TalonFX motor;
+  private final TalonFXSimState motorSim; 
   private final PositionVoltage positionRequest;
   private final VelocityVoltage velocityRequest;
   private final StatusSignal<Angle> positionSignal;
@@ -61,6 +63,7 @@ public class ArmSubsystem extends SubsystemBase {
   // Constructor to initialize everything
   public ArmSubsystem() {
     motor = new TalonFX(canID);
+    motorSim = motor.getSimState(); //gets the simulation state of the motor
     positionRequest = new PositionVoltage(0).withSlot(0);
     velocityRequest = new VelocityVoltage(0).withSlot(0);
     positionSignal = motor.getPosition();
@@ -101,6 +104,8 @@ public class ArmSubsystem extends SubsystemBase {
       Units.degreesToRadians(0)
     );
 
+    armLigament.setLength(armLength);
+
     SmartDashboard.putData("Arm Visualization", mech2d);
   }
   // This method is called periodically to update any information on the SmartDashboard
@@ -117,11 +122,19 @@ public class ArmSubsystem extends SubsystemBase {
   // This method is called periodically for simulation
   @Override
   public void simulationPeriodic() {
-    armSim.setInput(getVoltage());
+
+    System.out.println(motorSim.getMotorVoltage());
+    armSim.setInput(motorSim.getMotorVoltage());
     armSim.update(0.02);
+    // System.out.println(Units.radiansToDegrees((armSim.getAngleRads())));
+
+    motorSim.setRawRotorPosition(
+      (armSim.getAngleRads() - Math.toRadians(minAngleDeg)) * gearRatio * 2.0 * Math.PI);
+
+    motorSim.setRotorVelocity(
+      (armSim.getVelocityRadPerSec() * gearRatio) / (2.0 * Math.PI));
+
     armLigament.setAngle(Units.radiansToDegrees(armSim.getAngleRads()));
-    armLigament.setLength(armLength);
-    
   }
   
   // Method to get current position of the arm (in rotations)
@@ -171,6 +184,7 @@ public class ArmSubsystem extends SubsystemBase {
 
   // Method to set the arm velocity (in degrees per second)
   public void setVelocity(double velocityDegPerSec) {
+    System.out.println("AAAAAAAAAAAAAAAAAAAAAAAAAAA");
     setVelocity(velocityDegPerSec, 0);
   }
 
@@ -195,7 +209,7 @@ public class ArmSubsystem extends SubsystemBase {
 
   // Command to set the arm angle to a specific value
   public Command setAngleCommand(double angleDegrees) {
-    return runOnce(() -> setAngle(angleDegrees));
+    return runOnce(() -> setAngle(angleDegrees, 1));
   }
 
   // Command to stop the arm by setting velocity to 0
