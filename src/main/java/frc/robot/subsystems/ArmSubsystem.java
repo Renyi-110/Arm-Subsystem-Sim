@@ -26,12 +26,11 @@ import edu.wpi.first.units.measure.*;
 
 public class ArmSubsystem extends SubsystemBase {
 
-
   // Feedforward
   private final ArmFeedforward feedforward = new ArmFeedforward(ArmConstants.kS,ArmConstants.kG,ArmConstants.kV,ArmConstants.kA);
 
   // Motor control variables
-  private final TalonFX motor;
+  private final TalonFX motor  = new TalonFX(ArmConstants.canID);
   private final TalonFXSimState motorSim; 
   private final PositionVoltage positionRequest;
   private final VelocityVoltage velocityRequest;
@@ -50,7 +49,7 @@ public class ArmSubsystem extends SubsystemBase {
 
   // Constructor to initialize everything
   public ArmSubsystem() {
-    motor = new TalonFX(ArmConstants.canID);
+    
     motorSim = motor.getSimState(); //gets the simulation state of the motor
     positionRequest = new PositionVoltage(0).withSlot(0);
     velocityRequest = new VelocityVoltage(0).withSlot(0);
@@ -105,8 +104,11 @@ public class ArmSubsystem extends SubsystemBase {
   // This method is called periodically to update any information on the SmartDashboard
   @Override
   public void periodic() {
+  
     BaseStatusSignal.refreshAll(positionSignal, velocitySignal, voltageSignal, statorCurrentSignal, temperatureSignal);
-    SmartDashboard.putNumber("Arm/Position (rot)", getPosition());
+    SmartDashboard.putNumber("Arm/Position (rot)", motor.getPosition().getValueAsDouble());
+
+    //SmartDashboard.putNumber("Arm/Position (rot)", getPosition());
     SmartDashboard.putNumber("Arm/Velocity (rps)", getVelocity());
     SmartDashboard.putNumber("Arm/Voltage", getVoltage());
     SmartDashboard.putNumber("Arm/Current", getCurrent());
@@ -169,7 +171,7 @@ public class ArmSubsystem extends SubsystemBase {
     return getPosition() * 2.0 * Math.PI;
   }
 
-
+  // Method to set the arm position (in degrees)
   public void setPosition(double position) {
     double rotations = Math.toRadians(position) / (2.0 * Math.PI);
     armMotionMagicControl.Slot = 0;
@@ -189,7 +191,6 @@ public class ArmSubsystem extends SubsystemBase {
         (currentDeg <= ArmConstants.minAngleDeg && velocityDegPerSec < 0)) {
       velocityDegPerSec = 0;
     }
-
     double velocityRadPerSec = Units.degreesToRadians(velocityDegPerSec);
     double velocityRotations = velocityRadPerSec / (2.0 * Math.PI);
     double ffVolts = feedforward.calculate(getVelocity(), acceleration);
@@ -202,6 +203,11 @@ public class ArmSubsystem extends SubsystemBase {
   }
 
   // Command to set the arm angle to a specific value
+  /*
+   * 
+   * A lambda expression is a short block of code which takes in parameters and returns a value. Lambda expressions are similar to methods,
+   * but they do not need a name and they can be implemented right in the body of a method.
+   */
   public Command setAngleCommand(double angleDegrees) {
     return runOnce(() -> setPosition(angleDegrees));
   }

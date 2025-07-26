@@ -26,8 +26,8 @@ public final class Constants {
   }
 
   public static class ArmConstants {
-    public final static int canID = 1;
-    public final static double gearRatio = 100; //100:1 gear ratio
+    public final static int canID = 12;
+    public final static double gearRatio = 25; //25:1 gear ratio
     public final static double kP = 10;
     public final static double kI = 0;
     public final static double kD = 0;
