@@ -90,7 +90,7 @@ public class ArmSubsystem extends SubsystemBase {
     currentLimits.SupplyCurrentLimit = supplyCurrentLimit;
     currentLimits.SupplyCurrentLimitEnable = enableSupplyLimit;
 
-    config.Feedback.SensorToMechanismRatio = gearRatio;
+    config.Feedback.SensorToMechanismRatio = gearRatio * 2.0 * Math.PI;
     config.MotionMagic.MotionMagicCruiseVelocity = 10.0;
     config.MotionMagic.MotionMagicAcceleration = 20.0;
 
