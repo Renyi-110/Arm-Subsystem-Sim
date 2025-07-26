@@ -90,7 +90,7 @@ public class ArmSubsystem extends SubsystemBase {
     currentLimits.SupplyCurrentLimit = supplyCurrentLimit;
     currentLimits.SupplyCurrentLimitEnable = enableSupplyLimit;
 
-    config.Feedback.SensorToMechanismRatio = gearRatio * 2.0 * Math.PI;
+    config.Feedback.SensorToMechanismRatio = gearRatio;
     config.MotionMagic.MotionMagicCruiseVelocity = 10.0;
     config.MotionMagic.MotionMagicAcceleration = 20.0;
 
@@ -144,8 +144,8 @@ public class ArmSubsystem extends SubsystemBase {
     motorSim.setRawRotorPosition(
         (armSim.getAngleRads() - Math.toRadians(minAngleDeg))
             * gearRatio
-            * 2.0
-            * Math.PI);
+            / (2.0
+            * Math.PI));
 
     motorSim.setRotorVelocity(
       armSim.getVelocityRadPerSec() * gearRatio / (2.0 * Math.PI));

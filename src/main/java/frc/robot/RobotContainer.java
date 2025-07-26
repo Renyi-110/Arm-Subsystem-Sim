@@ -48,6 +48,7 @@ public class RobotContainer {
 
     // Add dashboard buttons
     SmartDashboard.putData("Move Arm to 45°", m_armSubsystem.setAngleCommand(45));
+    SmartDashboard.putData("Move Arm to 90°", m_armSubsystem.setAngleCommand(90));
     SmartDashboard.putData("Stop Arm", m_armSubsystem.stopCommand());
   }
 
