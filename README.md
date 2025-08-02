@@ -1,4 +1,6 @@
 # Arm Subsystem Sim
+FIX/SIMULATION BRANCH WORKS, DO NOT USE MAIN
+
 
 This template provides a partially completed WPILib Java project for a differential (tank-style) drive robot with an Arm Subsystem with one kraken motor.
 
